@@ -155,28 +155,7 @@
     </script>
     
     <script id="template-application" type="text/template">
-      <div class="counter-container">
-        <table>
-          <thead>
-            <tr><th></th><th>Counties</th><th>Registerd voters</th><th>Percent</th></tr>
-          </thead>
-          <tbody>
-            <tr class="selected-container">
-              <td>Selected</td>
-              <td>0</td>
-              <td>0</td>
-              <td>0%</td>
-            </tr>
-            <tr class="other-container">
-              <td>Other</td>
-              <td>87</td>
-              <td>0</td>
-              <td>100%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      
+      <div class="counter-container"></div>
       <div id="d3-chart-container"></div>
     </script>
     
@@ -187,8 +166,30 @@
         Registered voters: <strong><%= d3.format(',d')(d.voters) %></strong>
       </div>
     </script>
-  
-  
+    
+    <script id="template-counter" type="text/template">
+      <div class="counter-container-table">
+        <table>
+          <thead>
+            <tr><th></th><th>Counties</th><th>Registerd voters</th><th>Percent</th></tr>
+          </thead>
+          <tbody>
+            <tr class="selected-container">
+              <td>Selected</td>
+              <td><%= selectedCount %></td>
+              <td><%= d3.format(',d')(selectedVoters) %></td>
+              <td><%= d3.format('.1%')(selectedVoters / totalVoters) %></td>
+            </tr>
+            <tr class="other-container">
+              <td>Other</td>
+              <td><%= otherCount %></td>
+              <td><%= d3.format(',d')(otherVoters) %></td>
+              <td><%= d3.format('.1%')(otherVoters / totalVoters) %></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </script>
   
     <!-- jQuery that is used on site -->
     <script type="text/javascript">
@@ -213,16 +214,24 @@
           var grouped = _.groupBy(data, 'date');
           var recent = grouped['2012-10-26'];
           var templateTooltip = $('#template-tooltip').html();
-          var applicationTooltip = $('#template-application').html();
+          var templateApplication = $('#template-application').html();
+          var templateCounter = $('#template-counter').html();
           var voterMax = (_.max(recent, function(r) { return r.voters; })).voters;
+          var selectedDefault = [ 'Hennepin', 'Ramsey', 'Dakota', 'Anoka', 'Washington' ];
 
           // Reset container
-          $('#chart-container').html(_.template(applicationTooltip, {}));
+          $('#chart-container').html(_.template(templateApplication, {}));
+          
+          // Select defaults
+          recent = _.map(recent, function(r) {
+            r.selected = (_.contains(selectedDefault, r.county)) ? true : false;
+          });
           
           // Convert data to use in pack
           var recentPack = {
             'name': 'Counties',
-            'children': recent
+            'children': recent,
+            'county': 'top-level'
           };
           
           // Number formater
@@ -244,49 +253,100 @@
           var pack = d3.layout.pack().size([w - 5, h - 5]).padding(5)
             .sort(function(a, b) { return b.voters - a.voters; } )
             .value(function(d) { return d.voters; } );
+          var packedData = pack.nodes(recentPack).filter(function(d) { return !d.children; });
           
           // Create svg canvas
           var svg = d3.select('#d3-chart-container').append('svg')
             .attr('width', w).attr('height', h).attr('class', 'county-chart');
-          
-          // Create node for groups of items
-          var nodeData = svg.selectAll('g.countyNode').data(
-            pack.nodes(recentPack).filter(function(d) { return !d.children; })
-          );
-          var nodes = nodeData.enter().append('g');
-          
-          nodes.attr('class', 'countyNode')
-            .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
-          
-          nodes.append('circle')
-            .attr('r', function(d) { return d.r; })
-            .style('fill', function(d) { return colorRange(d.voters); });
-          
-          nodes.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('dy', '.3em')
-            .style('fill', '#222222')
-            .text(function(d) { 
-              return d.county.substring(0, (Math.floor(d.r / 5) === 1) ? 0 : Math.floor(d.r / 5));
+            
+          // Process data table
+          var processTable = function(data) {
+            var counts = {
+              selectedCount: 0,
+              selectedVoters: 0,
+              otherCount: 0,
+              otherVoters: 0,
+              totalCount: 0,
+              totalVoters: 0,
+            }
+            
+            _.each(data, function(d) {
+              counts.totalCount += 1;
+              counts.totalVoters += d.voters;
+              if (!_.isUndefined(d.selected) && d.selected === true) {
+                counts.selectedCount += 1;
+                counts.selectedVoters += d.voters;
+              }
+              else {
+                counts.otherCount += 1;
+                counts.otherVoters += d.voters;
+              }
             });
             
-          // Rollover
-          nodes.on('mouseover', function(d, i) {
-            d3.select(this).selectAll('circle').style({
-              'stroke': '#777777',
-              'stroke-width': 2
+            $('.counter-container').html(_.template(templateCounter, counts));
+          };
+            
+          // Function to handle update of data
+          var dataHandler = function(data) {
+            // Create node for groups of items
+            var nodes = svg.selectAll('g.countyNode').data(data, function(d) { return d.county; });
+            
+            // Update all
+            nodes.selectAll('circle')
+              .style('stroke', function(d) {
+                return (!_.isUndefined(d.selected) && d.selected === true) ? '#222222' : 'transparent';
+              });
+            // Table values
+            processTable(data);
+            
+            // Enter, update new elements
+            var nodesEnter = nodes.enter().append('g');
+            
+            nodesEnter.attr('class', 'countyNode')
+              .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+            
+            nodesEnter.append('circle')
+              .attr('r', function(d) { return d.r; })
+              .style('fill', function(d) { return colorRange(d.voters); })
+              .style('stroke-width', 2)
+              .style('stroke', function(d) {
+                return (!_.isUndefined(d.selected) && d.selected === true) ? '#222222' : 'transparent';
+              });
+            
+            nodesEnter.append('text')
+              .attr('text-anchor', 'middle')
+              .attr('dy', '.3em')
+              .style('fill', '#222222')
+              .text(function(d) { 
+                return d.county.substring(0, (Math.floor(d.r / 5) === 1) ? 0 : Math.floor(d.r / 5));
+              });
+              
+            // Rollover
+            nodesEnter.on('mouseover', function(d, i) {
+              //d3.select(this).selectAll('circle').style('stroke', '#777777');
+              $tooltip
+                .css('top', (d.y + $container.offset().top - 10) + 'px')
+                .css('left', (d.x + $container.offset().left + d.r + 10) + 'px')
+                .html(_.template(templateTooltip, { d: d }))
+                .fadeIn('fast');
             });
-            $tooltip
-              .css('top', (d.y + $container.offset().top - 10) + 'px')
-              .css('left', (d.x + $container.offset().left + d.r + 10) + 'px')
-              .html(_.template(templateTooltip, { d: d }))
-              .fadeIn('fast');
-          });
-          nodes.on('mouseout', function(d, i) {
-            d3.select(this).selectAll('circle').style('stroke-width', 0);
-            $tooltip.hide();
-          });
+            nodesEnter.on('mouseout', function(d, i) {
+              //d3.select(this).selectAll('circle').style('stroke-width', 0);
+              $tooltip.hide();
+            });
+            nodesEnter.on('click', function(d, i) {
+              packedData = _.map(packedData, function(p) {
+                if (p.county === d.county) {
+                  p.selected = (!_.isUndefined(p.selected) && p.selected === true) ? false: true;
+                }
+                return p;
+              });
+              dataHandler(packedData);
+            });
+          }
           
+          // Start off with data
+          dataHandler(packedData);
         };
         
         // Kick it off
