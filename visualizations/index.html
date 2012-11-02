@@ -90,6 +90,17 @@
         font-size: .85em;
       }
       
+      .tooltip-body-container {
+        position: absolute;
+        z-index: 99;
+      }
+      .tooltip-container {
+        background-color: #E2E2E2;
+        border: 1px solid #777777;
+        border-radius: 5px;
+        padding: .5em 1em;
+      }
+      
       /**
        * Responsive screen size styles
        */
@@ -137,6 +148,14 @@
       <h3>We are sorry</h3>
       <p>The election data service seems to be down or you no longer have access to the Internet.  Try refreshing the page or checking your Internet connection.</p>
     </script>
+    
+    <script id="template-tooltip" type="text/template">
+      <div class="tooltip-container">
+        <h5><%= d.county %> County</h5>
+        
+        Registered voters: <strong><%= d3.format(',d')(d.voters) %></strong>
+      </div>
+    </script>
   
   
   
@@ -165,6 +184,7 @@
           var $container = $('#chart-container');
           var w = $container.width();
           var h = $container.height();
+          var templateTooltip = $('#template-tooltip').html();
           var voterMax = (_.max(recent, function(r) { return r.voters; })).voters;
 
           // Reset container
@@ -175,6 +195,12 @@
             'name': 'Counties',
             'children': recent
           };
+          
+          // Number formater
+          var numFormater = d3.format(',d');
+          
+          // Tooltip placeholder
+          var $tooltip = $('<div>').addClass('tooltip-body-container').hide().appendTo('body');
           
           // Color range
           var colorRange = d3.scale.linear()
@@ -200,9 +226,6 @@
           nodes.attr('class', 'countyNode')
             .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
           
-          nodes.append('title')
-            .text(function(d) { return d.county; });
-          
           nodes.append('circle')
             .attr('r', function(d) { return d.r; })
             .style('fill', function(d) { return colorRange(d.voters); });
@@ -214,6 +237,23 @@
             .text(function(d) { 
               return d.county.substring(0, (Math.floor(d.r / 5) === 1) ? 0 : Math.floor(d.r / 5));
             });
+            
+          // Rollover
+          nodes.on('mouseover', function(d, i) {
+            d3.select(this).selectAll('circle').style({
+              'stroke': '#777777',
+              'stroke-width': 2
+            });
+            $tooltip
+              .css('top', (d.y + $container.offset().top - 10) + 'px')
+              .css('left', (d.x + $container.offset().left + d.r + 10) + 'px')
+              .html(_.template(templateTooltip, { d: d }))
+              .fadeIn('fast');
+          });
+          nodes.on('mouseout', function(d, i) {
+            d3.select(this).selectAll('circle').style('stroke-width', 0);
+            $tooltip.hide();
+          });
           
         };
         
