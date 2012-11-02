@@ -206,12 +206,13 @@
       jQueryCustom = jQueryCustom.noConflict();
       
       (function($, w, undefined) {
-        var dataURL = 'https://api.scraperwiki.com/api/1.0/datastore/sqlite?format=jsondict&name=mn_registered_voters_by_county&query=select%20*%20from%20%60swdata%60&callback=?';
+        var dataURL = ['https://api.scraperwiki.com/api/1.0/datastore/sqlite?',
+          'format=jsondict&name=mn_registered_voters_by_county&callback=?&query=',
+          encodeURI('SELECT s.* FROM swdata AS s INNER JOIN (SELECT date FROM swdata ORDER BY date DESC LIMIT 1) AS j ON j.date = s.date')];
         
         // Function for handling data
         var processData = function(data) {
-          var grouped = _.groupBy(data, 'date');
-          var recent = grouped['2012-10-26'];
+          var recent = data;
           var templateTooltip = $('#template-tooltip').html();
           var templateApplication = $('#template-application').html();
           var templateCounter = $('#template-counter').html();
@@ -250,7 +251,7 @@
           var $container = $('#d3-chart-container');
           var w = $container.width();
           var h = $container.height();
-          var pack = d3.layout.pack().size([w - 5, h - 5]).padding(5)
+          var pack = d3.layout.pack().size([w - 5, h - 5]).padding(8)
             .sort(function(a, b) { return b.voters - a.voters; } )
             .value(function(d) { return d.voters; } );
           var packedData = pack.nodes(recentPack).filter(function(d) { return !d.children; });
@@ -308,7 +309,7 @@
             nodesEnter.append('circle')
               .attr('r', function(d) { return d.r; })
               .style('fill', function(d) { return colorRange(d.voters); })
-              .style('stroke-width', 2)
+              .style('stroke-width', 3)
               .style('stroke', function(d) {
                 return (!_.isUndefined(d.selected) && d.selected === true) ? '#222222' : 'transparent';
               });
@@ -323,15 +324,14 @@
               
             // Rollover
             nodesEnter.on('mouseover', function(d, i) {
-              //d3.select(this).selectAll('circle').style('stroke', '#777777');
+              d3.select(this).style('cursor', 'pointer');
               $tooltip
                 .css('top', (d.y + $container.offset().top - 10) + 'px')
                 .css('left', (d.x + $container.offset().left + d.r + 10) + 'px')
                 .html(_.template(templateTooltip, { d: d }))
-                .fadeIn('fast');
+                .show();
             });
             nodesEnter.on('mouseout', function(d, i) {
-              //d3.select(this).selectAll('circle').style('stroke-width', 0);
               $tooltip.hide();
             });
             nodesEnter.on('click', function(d, i) {
@@ -352,7 +352,7 @@
         // Kick it off
         $('#chart-container').html(_.template($('#template-loading').html(), {}));
         $.jsonp({
-          url: dataURL,
+          url: dataURL.join(''),
           success: processData,
           error: function(e) {
             $('#chart-container').html(_.template($('#template-service-down').html(), {}));
