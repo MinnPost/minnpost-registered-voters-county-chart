@@ -224,6 +224,7 @@
           // Select defaults
           recent = _.map(recent, function(r) {
             r.selected = (_.contains(selectedDefault, r.county)) ? true : false;
+            return r;
           });
           
           // Convert data to use in pack
