@@ -85,6 +85,11 @@
         height: 400px;
       }
       
+      .county-chart {
+        font-family: Helvetica,Arial,Geneva,sans-serif;
+        font-size: .85em;
+      }
+      
       /**
        * Responsive screen size styles
        */
@@ -183,7 +188,8 @@
             .value(function(d) { return d.voters; } );
           
           // Create svg canvas
-          var svg = d3.select('#chart-container').append('svg').attr('width', w).attr('height', h);
+          var svg = d3.select('#chart-container').append('svg')
+            .attr('width', w).attr('height', h).attr('class', 'county-chart');
           
           // Create node for groups of items
           var nodeData = svg.selectAll('g.countyNode').data(
@@ -204,7 +210,10 @@
           nodes.append('text')
             .attr('text-anchor', 'middle')
             .attr('dy', '.3em')
-            .text(function(d) { return d.county.substring(0, d.r / 4); });
+            .style('fill', '#222222')
+            .text(function(d) { 
+              return d.county.substring(0, (Math.floor(d.r / 5) === 1) ? 0 : Math.floor(d.r / 5));
+            });
           
         };
         
