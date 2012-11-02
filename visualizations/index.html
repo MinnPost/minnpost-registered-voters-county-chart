@@ -160,6 +160,7 @@
           var $container = $('#chart-container');
           var w = $container.width();
           var h = $container.height();
+          var voterMax = (_.max(recent, function(r) { return r.voters; })).voters;
 
           // Reset container
           $container.html('');
@@ -169,6 +170,12 @@
             'name': 'Counties',
             'children': recent
           };
+          
+          // Color range
+          var colorRange = d3.scale.linear()
+            .domain(d3.range(1, voterMax, 10000))
+            .range(['#6DAC15', '#74AA15', '#7CA915', '#84A715', '#8CA615', '#94A415', '#9CA315', '#A4A115', '#ACA015', '#ACA015', '#AC9615', '#AC8D15', '#AC8315', '#AC7A15', '#AC7015', '#AC6715', '#AC5D15', '#AC5415'])
+            .clamp(true);
           
           // Layout
           var pack = d3.layout.pack().size([w - 5, h - 5]).padding(5)
@@ -192,12 +199,12 @@
           
           nodes.append('circle')
             .attr('r', function(d) { return d.r; })
-            .style('fill', function(d) { return 'red'; });
+            .style('fill', function(d) { return colorRange(d.voters); });
           
           nodes.append('text')
             .attr('text-anchor', 'middle')
             .attr('dy', '.3em')
-            .text(function(d) { return d.county; });
+            .text(function(d) { return d.county.substring(0, d.r / 4); });
           
         };
         
