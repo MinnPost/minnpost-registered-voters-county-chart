@@ -80,16 +80,6 @@
         line-height: 100%;
       }
       
-      #chart-container {
-        width: 100%;
-        height: 400px;
-      }
-      
-      .county-chart {
-        font-family: Helvetica,Arial,Geneva,sans-serif;
-        font-size: .85em;
-      }
-      
       .tooltip-body-container {
         position: absolute;
         z-index: 99;
@@ -97,8 +87,24 @@
       .tooltip-container {
         background-color: #E2E2E2;
         border: 1px solid #777777;
-        border-radius: 5px;
         padding: .5em 1em;
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+      }
+      #minnpost-registered-voters-county-chart table {
+        width: 100%;
+        font-size: .85em;
+        font-family: Helvetica,Arial,Geneva,sans-serif;
+      }
+      #minnpost-registered-voters-county-chart table tr:nth-child(even) {
+        background-color: #EBEBEB;
+      }
+      #d3-chart-container {
+        width: 100%;
+        height: 400px;
+        font-family: Helvetica,Arial,Geneva,sans-serif;
+        font-size: .85em;
       }
       
       /**
@@ -131,7 +137,6 @@
       <![endif]-->
       
       <div id="chart-container">
-      
       </div>
       
       <p class="footnote">Registered voter data provided by the <a href="http://www.sos.state.mn.us/index.aspx?page=531" target="_blank">MN Secretary of State</a>.  Data processing aided by <a href="https://scraperwiki.com/" target="_blank">ScraperWiki</a>.</p>
@@ -147,6 +152,32 @@
     <script id="template-service-down" type="text/template">
       <h3>We are sorry</h3>
       <p>The election data service seems to be down or you no longer have access to the Internet.  Try refreshing the page or checking your Internet connection.</p>
+    </script>
+    
+    <script id="template-application" type="text/template">
+      <div class="counter-container">
+        <table>
+          <thead>
+            <tr><th></th><th>Counties</th><th>Registerd voters</th><th>Percent</th></tr>
+          </thead>
+          <tbody>
+            <tr class="selected-container">
+              <td>Selected</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0%</td>
+            </tr>
+            <tr class="other-container">
+              <td>Other</td>
+              <td>87</td>
+              <td>0</td>
+              <td>100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div id="d3-chart-container"></div>
     </script>
     
     <script id="template-tooltip" type="text/template">
@@ -181,14 +212,12 @@
         var processData = function(data) {
           var grouped = _.groupBy(data, 'date');
           var recent = grouped['2012-10-26'];
-          var $container = $('#chart-container');
-          var w = $container.width();
-          var h = $container.height();
           var templateTooltip = $('#template-tooltip').html();
+          var applicationTooltip = $('#template-application').html();
           var voterMax = (_.max(recent, function(r) { return r.voters; })).voters;
 
           // Reset container
-          $container.html('');
+          $('#chart-container').html(_.template(applicationTooltip, {}));
           
           // Convert data to use in pack
           var recentPack = {
@@ -209,12 +238,15 @@
             .clamp(true);
           
           // Layout
+          var $container = $('#d3-chart-container');
+          var w = $container.width();
+          var h = $container.height();
           var pack = d3.layout.pack().size([w - 5, h - 5]).padding(5)
             .sort(function(a, b) { return b.voters - a.voters; } )
             .value(function(d) { return d.voters; } );
           
           // Create svg canvas
-          var svg = d3.select('#chart-container').append('svg')
+          var svg = d3.select('#d3-chart-container').append('svg')
             .attr('width', w).attr('height', h).attr('class', 'county-chart');
           
           // Create node for groups of items
