@@ -332,14 +332,20 @@
             // Rollover
             nodesEnter.on('mouseover', function(d, i) {
               d3.select(this).style('cursor', 'pointer');
+              
               $tooltip
                 .css('top', (d.y + $container.offset().top - 10) + 'px')
                 .css('left', (d.x + $container.offset().left + d.r + 10) + 'px')
                 .html(_.template(templateTooltip, { d: d }))
                 .show();
+              
+              var color = d3.rgb(d3.select(this).select('circle').style('fill'));
+              d3.select(this).select('circle').style('fill', color.brighter().toString());
             });
             nodesEnter.on('mouseout', function(d, i) {
               $tooltip.hide();
+              var color = d3.rgb(d3.select(this).select('circle').style('fill'));
+              d3.select(this).select('circle').style('fill', color.darker().toString());
             });
             nodesEnter.on('click', function(d, i) {
               packedData = _.map(packedData, function(p) {
